@@ -13,7 +13,7 @@ const int echoPin = 11;
 
 // MIC and LED
 const int micPin = A0;
-const int ledPin = 6;  // PWM capable
+const int ledPin = 10;  // PWM capable
 
 // Behavior tunables
 const long distanceThresholdCm = 100;  // only react when closer than this
