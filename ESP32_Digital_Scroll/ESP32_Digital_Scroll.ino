@@ -49,24 +49,27 @@ const char index_html[] PROGMEM = R"rawliteral(
     #container {
       width: 100vw;
       height: 100vh;
-      overflow-x: scroll;
+      background-color: #333;
+      display: flex;            /* 使用 Flexbox 排版 */
+      align-items: center;      /* 垂直置中 */
+      justify-content: flex-start; /* 靠左對齊 */
+      overflow-x: hidden;       /* 隱藏水平捲軸 (由程式控制捲動) */
       overflow-y: hidden;
-      white-space: nowrap;
-      scroll-behavior: auto;
     }
     #container::-webkit-scrollbar { display: none; }
-    #scroll-content {
-      height: 100%;
-      /* 清明上河圖範例 */
-      background-image: url('https://upload.wikimedia.org/wikipedia/commons/8/86/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg');
-      background-repeat: no-repeat;
-      background-size: cover;
-      width: 1000vw; 
+    
+    /* 圖片設定: 高度固定為視窗的一半 (1/2) */
+    #scroll-img {
+      height: 50vh;     /* 高度佔螢幕 50% */
+      width: auto;      /* 寬度自動調整，保持比例 */
+      flex-shrink: 0;   /* 關鍵: 禁止圖片縮小，確保能超出畫面 */
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
     }
+
     #status {
       position: fixed;
       top: 10px; left: 10px;
-      background: rgba(0,0,0,0.5); color: white;
+      background: rgba(0,0,0,0.7); color: white;
       padding: 5px 10px; border-radius: 5px;
       font-family: monospace; z-index: 999;
     }
@@ -75,7 +78,17 @@ const char index_html[] PROGMEM = R"rawliteral(
 <body>
   <div id="status">連線中...</div>
   <div id="container">
-    <div id="scroll-content"></div>
+    <!-- 圖片來源設定 (已改為較小的 5000px 版本，載入速度較快) -->
+    <!-- 
+      原始大圖 (58MB): https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg
+      中解析度 (5000px): https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg/5000px-Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg
+    -->
+    <img id="scroll-img" 
+         src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg/5000px-Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg" 
+         alt="圖片載入失敗，請確認您的裝置可以連上網際網路 (外網)"
+         onload="document.getElementById('status').innerText += ' (圖片已載入)'"
+         onerror="document.getElementById('status').innerText = '錯誤: 無法載入圖片，請檢查網路連線'"
+    >
   </div>
 
   <script>
@@ -95,7 +108,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
     function onOpen(event) {
       console.log('Connection opened');
-      statusDiv.innerText = "已連線 - 請轉動可變電阻";
+      statusDiv.innerText = "WebSocket 已連線";
     }
 
     function onClose(event) {
@@ -106,6 +119,8 @@ const char index_html[] PROGMEM = R"rawliteral(
 
     function onMessage(event) {
       var potValue = parseInt(event.data);
+      
+      // 計算最大可捲動範圍 (圖片總寬 - 視窗寬)
       var maxScroll = container.scrollWidth - container.clientWidth;
       
       // 映射 0~4095 到 捲動範圍
@@ -178,12 +193,23 @@ void loop() {
   if (now - lastReadTime > 20) {
     lastReadTime = now;
     
-    int potValue = analogRead(POT_PIN);
+    // 讀取原始數值
+    int rawValue = analogRead(POT_PIN);
     
-    // 數值有變化才傳送
-    if (abs(potValue - lastPotValue) > THRESHOLD) {
-      lastPotValue = potValue;
-      String msg = String(potValue);
+    // === 平滑濾波處理 (解決數值跳動問題) ===
+    // 使用 EMA (指數移動平均) 演算法
+    // 0.9 = 舊數值權重 (越高越平滑，但反應變慢)
+    // 0.1 = 新數值權重
+    static float smoothedValue = 0;
+    if (smoothedValue == 0) smoothedValue = rawValue; // 初始化
+    smoothedValue = 0.9 * smoothedValue + 0.1 * rawValue;
+    
+    int currentPotValue = (int)smoothedValue;
+    
+    // 數值有變化才傳送 (門檻值可依需求微調，例如改為 5 或 10)
+    if (abs(currentPotValue - lastPotValue) > 5) {
+      lastPotValue = currentPotValue;
+      String msg = String(currentPotValue);
       webSocket.broadcastTXT(msg); // 廣播給所有連線的網頁
     }
   }

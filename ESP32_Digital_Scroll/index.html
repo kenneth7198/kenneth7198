@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ESP32 數位卷軸 (獨立客戶端)</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f4e4c1; overflow: hidden; font-family: sans-serif; }
+    
+    /* 控制面板 (用來輸入 IP) */
+    #controls {
+      position: fixed;
+      top: 10px; left: 10px;
+      background: rgba(0,0,0,0.8); color: white;
+      padding: 10px; border-radius: 8px;
+      z-index: 999;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    input { padding: 5px; border-radius: 4px; border: none; width: 120px;}
+    button { padding: 5px 10px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px;}
+    button:hover { background: #45a049; }
+    #status { margin-left: 10px; font-size: 14px; color: #ddd; }
+
+    /* 卷軸容器 */
+    #container {
+      width: 100vw;
+      height: 100vh;
+      background-color: #333;
+      display: flex;            /* 使用 Flexbox 排版 */
+      align-items: center;      /* 垂直置中 */
+      justify-content: flex-start; /* 靠左對齊 */
+      overflow-x: hidden;       /* 隱藏水平捲軸 (由程式控制捲動) */
+      overflow-y: hidden;
+    }
+    #container::-webkit-scrollbar { display: none; }
+    
+    /* 圖片設定: 高度固定為視窗的一半 (1/2) */
+    #scroll-img {
+      height: 50vh;     /* 高度佔螢幕 50% */
+      width: auto;      /* 寬度自動調整，保持比例 */
+      flex-shrink: 0;   /* 關鍵: 禁止圖片縮小，確保能超出畫面 */
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 控制面板 -->
+  <div id="controls">
+    <label>ESP32 IP:</label>
+    <input type="text" id="ipInput" placeholder="例如 192.168.0.100" value="">
+    <button onclick="connectWebSocket()">連線</button>
+    <span id="status">未連線</span>
+  </div>
+
+  <div id="container">
+    <!-- 使用中解析度圖片 -->
+    <img id="scroll-img" 
+         src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg/5000px-Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg" 
+         alt="圖片載入失敗"
+         onload="document.getElementById('status').innerText += ' (圖片 Ready)'"
+    >
+  </div>
+
+  <script>
+    var websocket;
+    var container = document.getElementById('container');
+    var statusSpan = document.getElementById('status');
+    var ipInput = document.getElementById('ipInput');
+
+    // 嘗試從 LocalStorage 讀取上次連線的 IP
+    var savedIP = localStorage.getItem('esp32_ip');
+    if (savedIP) {
+      ipInput.value = savedIP;
+    }
+
+    function connectWebSocket() {
+      var ip = ipInput.value;
+      if (!ip) { alert("請輸入 IP"); return; }
+
+      // 儲存 IP 方便下次使用
+      localStorage.setItem('esp32_ip', ip);
+
+      var gateway = `ws://${ip}:81/`;
+      console.log('Connecting to: ' + gateway);
+      statusSpan.innerText = "連線中...";
+
+      if (websocket) { websocket.close(); } // 關閉舊連線
+
+      websocket = new WebSocket(gateway);
+      websocket.onopen    = onOpen;
+      websocket.onclose   = onClose;
+      websocket.onmessage = onMessage;
+      websocket.onerror   = onError;
+    }
+
+    function onOpen(event) {
+      console.log('Connection opened');
+      statusSpan.innerText = "✅ 已連線";
+      statusSpan.style.color = "#4CAF50";
+    }
+
+    function onClose(event) {
+      console.log('Connection closed');
+      statusSpan.innerText = "❌ 連線中斷";
+      statusSpan.style.color = "#ff5555";
+    }
+
+    function onError(event) {
+      console.log('WebSocket Error');
+      statusSpan.innerText = "⚠️ 連線錯誤";
+    }
+
+    function onMessage(event) {
+      var potValue = parseInt(event.data);
+      var maxScroll = container.scrollWidth - container.clientWidth;
+      
+      // 映射 0~4095 到 捲動範圍
+      var scrollPos = (potValue / 4095) * maxScroll;
+      container.scrollLeft = scrollPos;
+    }
+  </script>
+</body>
+</html>
