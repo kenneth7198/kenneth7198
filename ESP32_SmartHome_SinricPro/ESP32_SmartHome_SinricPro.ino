@@ -50,7 +50,7 @@ const char* WIFI_PASS = "0908906870@a";
 #define SWITCH_ID         "YOUR_DEVICE_ID_HERE"    
 
 // 控制的 LED 腳位
-const int LED_PIN = 2;
+const int LED_PIN = 23;
 // ==============================================
 
 // 當收到開關指令時會執行此函式
