@@ -45,9 +45,9 @@ const char* WIFI_SSID = "Techart_AIoT";
 const char* WIFI_PASS = "0908906870@a";
 
 // 請將 Sinric Pro 網站上的資訊填入這裡
-#define APP_KEY           "YOUR_APP_KEY_HERE"      
-#define APP_SECRET        "YOUR_APP_SECRET_HERE"   
-#define SWITCH_ID         "YOUR_DEVICE_ID_HERE"    
+#define APP_KEY           "7387151c-26b3-4b62-9686-1b2003d76aba"      
+#define APP_SECRET        "f7f0ac09-65be-45a4-9ae5-7ba5da12dcfd-e38f9656-5e32-426b-b897-a43c69fa2342"   
+#define SWITCH_ID         "692ef5bc00f870dd77c6356e"    
 
 // 控制的 LED 腳位
 const int LED_PIN = 23;
